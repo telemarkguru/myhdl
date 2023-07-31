@@ -62,7 +62,14 @@ class _AttrRefTransformer(ast.NodeTransformer):
             if hasattr(SignalType, node.attr):
                 return node
 
-        attrobj = getattr(obj, node.attr)
+        try:
+            attrobj = getattr(obj, node.attr)
+        except AttributeError:
+            print(
+                f"Attribute error: {node.attr} {obj} @{node.lineno}",
+                flush=True,
+            )
+            raise
 
         orig_name = node.value.id + '.' + node.attr
         if orig_name not in self.name_map:

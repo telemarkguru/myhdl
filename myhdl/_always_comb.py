@@ -67,7 +67,11 @@ class _AlwaysComb(_Always):
             elif _isListOfSigs(s):
                 senslist.extend(s)
         self.senslist = tuple(senslist)
-        if len(self.senslist) == 0:
+        if not self.senslist:
+            print("always_comb inputs", self.inputs)
+            print("            outputs", self.outputs)
+            print("            func", self.func)
+            print("            symdict", self.symdict, flush=True)
             raise AlwaysCombError(_error.EmptySensitivityList)
 
     def genfunc(self):
@@ -78,5 +82,3 @@ class _AlwaysComb(_Always):
         while 1:
             func()
             yield senslist
-
-            

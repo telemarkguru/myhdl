@@ -198,7 +198,7 @@ def _writeVcdSigs(f, hierarchy, tracelists):
         memdict = inst.memdict
         delta = curlevel - level
         curlevel = level
-        assert(delta >= -1)
+        assert(delta >= -1, f"delta={delta}")
         if delta >= 0:
             for i in range(delta + 1):
                 print("$upscope $end", file=f)
@@ -236,6 +236,8 @@ def _writeVcdSigs(f, hierarchy, tracelists):
                 print("$scope module {} $end" .format(n), file=f)
                 memindex = 0
                 for s in memdict[n].mem:
+                    if not memdict[n]._signal_mem:
+                        continue
                     sval = _getSval(s)
                     if sval is None:
                         raise ValueError("%s of module %s has no initial value" % (n, name))

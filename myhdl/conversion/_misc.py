@@ -67,6 +67,7 @@ class _error(object):
     PortInList = "Port in list is not supported"
     ListAsPort = "List of signals as a port is not supported"
     SignalInMultipleLists = "Signal in multiple list is not supported"
+    MemoryType = "Memory elements must be Signal, intbv, modbv or int"
 
 
 class _access(object):

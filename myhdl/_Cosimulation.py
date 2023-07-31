@@ -27,7 +27,7 @@ from os import set_inheritable
 from myhdl._intbv import intbv
 from myhdl import _simulator, CosimulationError
 
-_MAXLINE = 4096
+_MAXLINE = 16384
 
 
 class _error:

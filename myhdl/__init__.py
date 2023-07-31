@@ -147,7 +147,7 @@ from ._concat import concat
 from ._intbv import intbv
 from ._modbv import modbv
 from ._join import join
-from ._Signal import posedge, negedge, Signal, SignalType
+from ._Signal import posedge, negedge, Signal, SignalType, Memory
 from ._ShadowSignal import ConcatSignal
 from ._ShadowSignal import TristateSignal
 from ._simulator import now
@@ -179,6 +179,7 @@ __all__ = ["bin",
            "negedge",
            "Signal",
            "SignalType",
+           "Memory",
            "ConcatSignal",
            "TristateSignal",
            "now",

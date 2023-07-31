@@ -120,18 +120,24 @@ def _analyzeSigs(hierarchy, hdl='Verilog'):
     for m in memlist:
         if not m._used:
             continue
-        for i, s in enumerate(m.mem):
-            s._name = "%s%s%s%s" % (m.name, open, i, close)
-            s._used = False
-            if s._inList:
-                raise ConversionError(_error.SignalInMultipleLists, s._name)
-            s._inList = True
-            if not s._nrbits:
-                raise ConversionError(_error.UndefinedBitWidth, s._name)
-            if type(s.val) != type(m.elObj.val):
-                raise ConversionError(_error.InconsistentType, s._name)
-            if s._nrbits != m.elObj._nrbits:
-                raise ConversionError(_error.InconsistentBitWidth, s._name)
+        if m._signal_mem:
+            for i, s in enumerate(m.mem):
+                s._name = "%s%s%s%s" % (m.name, open, i, close)
+                s._used = False
+                if s._inList:
+                    raise ConversionError(_error.SignalInMultipleLists, s._name)
+                s._inList = True
+                if not s._nrbits:
+                    raise ConversionError(_error.UndefinedBitWidth, s._name)
+                if type(s.val) != type(m.elObj.val):
+                    raise ConversionError(_error.InconsistentType, s._name)
+                if s._nrbits != m.elObj._nrbits:
+                    raise ConversionError(_error.InconsistentBitWidth, s._name)
+        else:
+            if m.mem:
+                s = m.mem[0]
+                if not isinstance(s, (intbv, modbv, _Signal, int)):
+                    raise ConversionError(_error.MemoryType, type(s))
 
     return siglist, memlist
 
@@ -963,6 +969,11 @@ class _AnalyzeVisitor(ast.NodeVisitor, _ConversionMixin):
             f.pop()
         node.format = f
         node.args = a
+        node.nl = True
+        for kw in node.keywords:
+            if kw.arg == "end" and kw.value.value == " ":
+                node.nl = False
+                break
         if len(node.args) < nr:
             self.raiseError(node, _error.FormatString, "not enough arguments")
         if len(node.args) > nr:

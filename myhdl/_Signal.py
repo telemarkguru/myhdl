@@ -94,14 +94,14 @@ def negedge(sig):
 # signal factory function
 
 
-def Signal(val=None, delay=None):
+def Signal(val=None, delay=None, debug_level=None, debug_descr=None):
     """ Return a new _Signal (default or delay 0) or DelayedSignal """
     if delay is not None:
         if delay < 0:
             raise TypeError("Signal: delay should be >= 0")
         return _DelayedSignal(val, delay)
     else:
-        return _Signal(val)
+        return _Signal(val, debug_level, debug_descr)
 
 
 class _Signal(object):
@@ -120,10 +120,10 @@ class _Signal(object):
                  '_setNextVal', '_copyVal2Next', '_printVcd',
                  '_driven', '_read', '_name', '_used', '_inList',
                  '_waiter', 'toVHDL', 'toVerilog', '_slicesigs',
-                 '_numeric'
+                 '_numeric', '_debug_level', '_debug_descr',
                  )
 
-    def __init__(self, val=None):
+    def __init__(self, val=None, debug_level=None, debug_descr=None):
         """ Construct a signal.
 
         val -- initial value
@@ -171,6 +171,8 @@ class _Signal(object):
         self._code = ""
         self._slicesigs = None
         self._tracing = 0
+        self._debug_level = debug_level
+        self._debug_descr = debug_descr
         _signals.append(self)
 
     def _clear(self):
@@ -659,6 +661,25 @@ class _SignalWrap(object):
 
 # for export
 SignalType = _Signal
+
+
+class Memory:
+    """Memory
+    """
+
+    def __init__(self, lst, nrbits=None):
+        self.mem = lst
+        self.nrbits = nrbits
+
+    def __getitem__(self, key):
+        return self.mem[key]
+
+    def __setitem__(self, key, value):
+        self.mem[key] = value & ((1 << self.nrbits)-1)
+
+    def __len__(self):
+        return len(self.mem)
+
 
 # avoid circular imports
 

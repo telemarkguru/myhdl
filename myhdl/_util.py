@@ -27,6 +27,7 @@ import inspect
 
 from tokenize import generate_tokens, untokenize, INDENT
 from io import StringIO
+from ._reduce import reduce
 
 
 def _printExcInfo():
@@ -71,6 +72,11 @@ def _dedent(s):
 
 
 def _makeAST(f):
+    tree = reduce(f)
+    tree.sourcefile = inspect.getsourcefile(f)
+    tree.lineoffset = inspect.getsourcelines(f)[1] - 1
+    return tree
+
     # Need to look at the flags used to compile the original function f and
     # pass these same flags to the compile() function. This ensures that
     # syntax-changing __future__ imports like print_function work correctly.

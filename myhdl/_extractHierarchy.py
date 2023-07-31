@@ -25,12 +25,13 @@ import inspect
 import string
 
 from myhdl import ExtractHierarchyError, ToVerilogError, ToVHDLError
-from myhdl._Signal import _Signal, _isListOfSigs
+from myhdl._Signal import _Signal, _isListOfSigs, Memory
 from myhdl._util import _flatten
 from myhdl._util import _genfunc
 from myhdl._misc import _isGenSeq
 from myhdl._resolverefs import _resolveRefs
 from myhdl._getcellvars import _getCellVars
+from myhdl._Cosimulation import Cosimulation
 
 
 _profileFunc = None
@@ -58,7 +59,10 @@ _memInfoMap = {}
 
 
 class _MemInfo(object):
-    __slots__ = ['mem', 'name', 'elObj', 'depth', '_used', '_driven', '_read']
+    __slots__ = [
+        'mem', 'name', 'elObj', 'depth', '_used', '_driven', '_read',
+        '_signal_mem', 'nrbits',
+    ]
 
     def __init__(self, mem):
         self.mem = mem
@@ -68,6 +72,8 @@ class _MemInfo(object):
         self._used = False
         self._driven = None
         self._read = None
+        self._signal_mem = True
+        self.nrbits = None
 
 
 def _getMemInfo(mem):
@@ -77,7 +83,11 @@ def _getMemInfo(mem):
 def _makeMemInfo(mem):
     key = id(mem)
     if key not in _memInfoMap:
-        _memInfoMap[key] = _MemInfo(mem)
+        if isinstance(mem, Memory):
+            _memInfoMap[key] = _MemInfo(mem.mem)
+            _memInfoMap[key]._signal_mem = False
+        else:
+            _memInfoMap[key] = _MemInfo(mem)
     return _memInfoMap[key]
 
 
@@ -270,7 +280,9 @@ class _HierExtr(object):
         for inst in hierarchy:
             obj, subs = inst.obj, inst.subs
             if id(obj) not in names:
-                raise ExtractHierarchyError(_error.InconsistentHierarchy)
+                print(f"Looking for {obj} with id {id(obj):#x}", flush=True)
+                continue
+                # raise ExtractHierarchyError(_error.InconsistentHierarchy)
             inst.name = names[id(obj)]
             tn = absnames[id(obj)]
             for sn, so in subs:
@@ -332,6 +344,8 @@ class _HierExtr(object):
                         local_gens = []
                         consts = func.__code__.co_consts
                         for item in _flatten(arg):
+                            if isinstance(item, Cosimulation):
+                                continue
                             genfunc = _genfunc(item)
                             if genfunc.__code__ in consts:
                                 local_gens.append(item)
@@ -340,6 +354,8 @@ class _HierExtr(object):
                             cellvars.extend(cellvarlist)
                             objlist = _resolveRefs(symdict, local_gens)
                             cellvars.extend(objlist)
+                    else:
+                        cellvars = frame.f_code.co_cellvars
                     # for dict in (frame.f_globals, frame.f_locals):
                     for n, v in symdict.items():
                         # extract signals and memories
@@ -351,6 +367,13 @@ class _HierExtr(object):
                             sigdict[n] = v
                             if n in cellvars:
                                 v._markUsed()
+                        if isinstance(v, Memory):
+                            m = _makeMemInfo(v)
+                            if v.nrbits is not None:
+                                m.nrbits = v.nrbits
+                            memdict[n] = m
+                            if n in cellvars:
+                                m._used = True
                         if _isListOfSigs(v):
                             m = _makeMemInfo(v)
                             memdict[n] = m

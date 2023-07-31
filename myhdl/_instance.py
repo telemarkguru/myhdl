@@ -53,16 +53,17 @@ def _getCallInfo():
     2: the block function that defines instances
     3: the caller of the block function, e.g. the BlockInstance.
     """
-    from myhdl import _block
-    funcrec = inspect.stack()[2]
+    stack = inspect.stack(0)
+    funcrec = stack[2]
     name = funcrec[3]
     frame = funcrec[0]
     symdict = dict(frame.f_globals)
     symdict.update(frame.f_locals)
     modctxt = False
-    callerrec = inspect.stack()[3]
+    callerrec = stack[3]
     f_locals = callerrec[0].f_locals
     if 'self' in f_locals:
+        from myhdl import _block
         modctxt = isinstance(f_locals['self'], _block._Block)
     return _CallInfo(name, modctxt, symdict)
 
@@ -86,6 +87,7 @@ class _Instantiator(object):
         self.modctxt = callinfo.modctxt
         self.genfunc = genfunc
         self.gen = genfunc()
+        self._tree = None
         # infer symdict
         f = self.funcobj
         varnames = f.__code__.co_varnames
@@ -95,7 +97,7 @@ class _Instantiator(object):
                 symdict[n] = v
         self.symdict = symdict
 
-        # print modname, genfunc.__name__
+        # /print modname, genfunc.__name__
         tree = self.ast
         # print ast.dump(tree)
         v = _AttrRefTransformer(self)
@@ -126,4 +128,6 @@ class _Instantiator(object):
 
     @property
     def ast(self):
-        return _makeAST(self.funcobj)
+        if not self._tree:
+            self._tree = _makeAST(self.funcobj)
+        return self._tree
