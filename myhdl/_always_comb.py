@@ -59,6 +59,7 @@ class _AlwaysComb(_Always):
 
         if self.embedded_func:
             raise AlwaysCombError(_error.EmbeddedFunction)
+        del self.embedded_func
 
         for n in self.inputs:
             s = self.symdict[n]
@@ -73,6 +74,7 @@ class _AlwaysComb(_Always):
             print("            func", self.func)
             print("            symdict", self.symdict, flush=True)
             raise AlwaysCombError(_error.EmptySensitivityList)
+        self._cleanup()
 
     def genfunc(self):
         senslist = self.senslist

@@ -42,7 +42,11 @@ class _CallInfo(object):
         self.symdict = symdict
 
 
+_last_symdict = None
+
+
 def _getCallInfo():
+    global _last_symdict
     """Get info on the caller of an Instantiator.
 
     An Instantiator should be used in a block context.
@@ -53,19 +57,22 @@ def _getCallInfo():
     2: the block function that defines instances
     3: the caller of the block function, e.g. the BlockInstance.
     """
-    stack = inspect.stack(0)
-    funcrec = stack[2]
-    name = funcrec[3]
-    frame = funcrec[0]
-    symdict = dict(frame.f_globals)
-    symdict.update(frame.f_locals)
-    modctxt = False
-    callerrec = stack[3]
-    f_locals = callerrec[0].f_locals
-    if 'self' in f_locals:
-        from myhdl import _block
-        modctxt = isinstance(f_locals['self'], _block._Block)
-    return _CallInfo(name, modctxt, symdict)
+    frame = inspect.currentframe()
+    try:
+        f = frame.f_back.f_back
+        name = f.f_code.co_name
+        symdict = dict(f.f_globals)
+        symdict.update(f.f_locals)
+        modctxt = False
+        f_locals = f.f_back.f_locals
+        _last_symdict = symdict
+
+        if 'self' in f_locals:
+            from myhdl import _block
+            modctxt = isinstance(f_locals['self'], _block._Block)
+        return _CallInfo(name, modctxt, symdict)
+    finally:
+        del frame
 
 
 def instance(genfunc):
@@ -81,13 +88,12 @@ def instance(genfunc):
 
 class _Instantiator(object):
 
+    _delete_inputs = True
+
     def __init__(self, genfunc, callinfo):
-        self.callinfo = callinfo
-        self.callername = callinfo.name
         self.modctxt = callinfo.modctxt
         self.genfunc = genfunc
         self.gen = genfunc()
-        self._tree = None
         # infer symdict
         f = self.funcobj
         varnames = f.__code__.co_varnames
@@ -111,6 +117,13 @@ class _Instantiator(object):
         self.sigdict = v.sigdict
         self.losdict = v.losdict
 
+    def _cleanup(self):
+        if self._delete_inputs:
+            del self.inputs
+        del self.outputs
+        del self.inouts
+        del self.symdict
+
     @property
     def name(self):
         return self.funcobj.__name__
@@ -128,6 +141,4 @@ class _Instantiator(object):
 
     @property
     def ast(self):
-        if not self._tree:
-            self._tree = _makeAST(self.funcobj)
-        return self._tree
+        return _makeAST(self.funcobj)

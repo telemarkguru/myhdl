@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #  This file is part of the myhdl library, a Python package for using
 #  Python as a Hardware Description Language.
 #

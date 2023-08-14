@@ -26,10 +26,12 @@ from myhdl import (AlwaysCombError, Signal, Simulation, StopSimulation, delay,
 from myhdl._always_comb import _error, always_comb
 from myhdl._Waiter import _SignalTupleWaiter, _SignalWaiter, _Waiter
 from helpers import raises_kind
+from myhdl._instance import _Instantiator
 
 # random.seed(3) # random, but deterministic
 
 QUIET = 1
+_Instantiator._delete_inputs = False
 
 
 def g():

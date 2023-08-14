@@ -118,6 +118,7 @@ class _AlwaysSeq(_Always):
                 assert _isListOfSigs(reg)
                 for e in reg:
                     sigregs.append(e)
+        self._cleanup()
 
     def reset_sigs(self):
         for s in self.sigregs:

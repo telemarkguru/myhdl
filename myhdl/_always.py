@@ -79,7 +79,9 @@ def always(*args):
             raise AlwaysError(_error.ArgType)
         if func.__code__.co_argcount > 0:
             raise AlwaysError(_error.NrOfArgs)
-        return _Always(func, args, callinfo=callinfo, sigdict=sigdict)
+        always = _Always(func, args, callinfo=callinfo, sigdict=sigdict)
+        always._cleanup()
+        return always
     return _always_decorator
 
 

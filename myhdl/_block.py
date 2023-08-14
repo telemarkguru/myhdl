@@ -26,6 +26,7 @@ import functools
 import myhdl
 from myhdl import BlockError, BlockInstanceError, Cosimulation
 from myhdl._instance import _Instantiator
+import myhdl._instance as _instance
 from myhdl._util import _flatten
 from myhdl._extractHierarchy import (_makeMemInfo,
                                      _UserVerilogCode, _UserVhdlCode,
@@ -62,29 +63,29 @@ def _getCallInfo():
 
     """
 
-    stack = inspect.stack()
-    # caller may be undefined if instantiation from a Python module
-    callerrec = None
-    funcrec = stack[3]
-    name = funcrec[3]
-    if len(stack) > 4:
-        callerrec = stack[4]
-    # special case for list comprehension's extra scope in PY3
-    if name == '<listcomp>':
-        funcrec = stack[4]
-        if len(stack) > 5:
-            callerrec = stack[5]
-
-    name = funcrec[3]
-    frame = funcrec[0]
-    symdict = dict(frame.f_globals)
-    symdict.update(frame.f_locals)
-    modctxt = False
-    if callerrec is not None:
-        f_locals = callerrec[0].f_locals
-        if 'self' in f_locals:
-            modctxt = isinstance(f_locals['self'], _Block)
-    return _CallInfo(name, modctxt, symdict)
+    frame = inspect.currentframe()
+    try:
+        f = frame.f_back.f_back.f_back
+        callerrec = None
+        name = f.f_code.co_name
+        b = f.f_back
+        if b:
+            callerrec = b
+        if name == "<listcomp>":
+            f = b
+            if f.f_back:
+                callerrec = f.f_back
+            name = f.f_code.co_name
+        symdict = dict(f.f_globals)
+        symdict.update(f.f_locals)
+        modctxt = False
+        if callerrec:
+            f_locals = callerrec.f_locals
+            if "self" in f_locals:
+                modctxt = isinstance(f_locals["self"], _Block)
+        return _CallInfo(name, modctxt, symdict)
+    finally:
+        del frame
 
 
 ### I don't think this is the right place for uniqueifying the name.
@@ -202,16 +203,16 @@ class _Block(object):
         self.kwargs = kwargs
         self.__doc__ = func.__doc__
         callinfo = _getCallInfo()
-        self.callinfo = callinfo
         self.modctxt = callinfo.modctxt
         self.callername = callinfo.name
-        self.symdict = None
         self.sigdict = {}
         self.memdict = {}
         self.name = self.__name__ = name
 
+        _instance._last_symdict = None
         # flatten, but keep BlockInstance objects
         self.subs = _flatten(func(*args, **kwargs))
+        self.symdict = _instance._last_symdict
         self._verifySubs()
         self._updateNamespaces()
         self.verilog_code = self.vhdl_code = None
@@ -229,6 +230,7 @@ class _Block(object):
             self.vhdl_code = _UserVhdlInstance(deco.vhdl_instance, self.symdict, func.__name__,
                                                func, srcfile, srcline)
         self._config_sim = {'trace': False}
+        _instance._last_symdict = self.symdict
 
     def _verifySubs(self):
         for inst in self.subs:
@@ -247,8 +249,6 @@ class _Block(object):
             # the call context of its instantiations
             if isinstance(inst, Cosimulation):
                 continue  # ignore
-            if self.symdict is None:
-                self.symdict = inst.callinfo.symdict
             if isinstance(inst, _Instantiator):
                 usedsigdict.update(inst.sigdict)
                 usedlosdict.update(inst.losdict)

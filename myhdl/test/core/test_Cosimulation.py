@@ -23,10 +23,12 @@ import os
 import random
 import sys
 
+import pytest
+
 if sys.platform == "win32":
     import msvcrt
 
-from myhdl import Signal
+from myhdl._Signal import Signal
 from myhdl._Cosimulation import Cosimulation, CosimulationError, _error
 
 if __name__ != '__main__':

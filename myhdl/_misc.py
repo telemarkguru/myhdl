@@ -46,12 +46,16 @@ def _isGenSeq(obj):
 
 def instances():
     f = inspect.currentframe()
-    d = inspect.getouterframes(f)[1][0].f_locals
-    l = []
-    for v in d.values():
-        if _isGenSeq(v):
-            l.append(v)
-    return l
+    try:
+        d = f.f_back.f_locals
+        # d = inspect.getouterframes(f)[1][0].f_locals
+        l = []
+        for v in d.values():
+            if _isGenSeq(v):
+                l.append(v)
+        return l
+    finally:
+        del f
 
 
 def downrange(start, stop=0, step=1):

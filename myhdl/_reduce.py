@@ -1,6 +1,11 @@
 import inspect
 import ast
 from ._ast import parse_func
+from ._intbv import intbv
+from ._modbv import modbv
+
+
+_globals = {"intbv": intbv, "modbv": modbv}
 
 
 class _Unbound:
@@ -36,15 +41,12 @@ def _closure_locals(func):
         )
 
 
-def _excl_const(obj):
-    return (
-        callable(obj) and not getattr(obj, "_inline", False)
-        or obj is _Unbound
-    )
+def _is_const(x):
+    return isinstance(x, (intbv, int, str, bool)) or x is None
 
 
 def _closure_constants(clocals):
-    return {x: clocals[x] for x in clocals if not _excl_const(clocals[x])}
+    return {x: clocals[x] for x in clocals if _is_const(clocals[x])}
 
 
 def _replace_constant(node, constants):
@@ -65,7 +67,7 @@ class _InsertConstants(ast.NodeTransformer):
         left_const = isinstance(node.left, ast.Constant)
         right_const = isinstance(node.right, ast.Constant)
         if left_const and right_const:
-            value = eval(ast.unparse(node))
+            value = eval(ast.unparse(node), _globals, self.clocals)
             return ast.Constant(value=value)
         else:
             return node
@@ -78,11 +80,37 @@ class _InsertConstants(ast.NodeTransformer):
         node.values = [
             _replace_constant(x, self.constants) for x in node.values
         ]
+        if isinstance(node.op, ast.And):
+            values = []
+            for x in node.values:
+                if isinstance(x, ast.Constant):
+                    if not x.value:
+                        return ast.Constant(value=False)
+                else:
+                    values.append(x)
+            node.values = values
+        else:  # Or:
+            values = []
+            for x in node.values:
+                if isinstance(x, ast.Constant):
+                    if x.value:
+                        return ast.Constant(value=True)
+                else:
+                    values.append(x)
+            node.values = values
         if all(isinstance(x, ast.Constant) for x in node.values):
-            value = eval(ast.unparse(node))
+            value = eval(ast.unparse(node), _globals, self.clocals)
             return ast.Constant(value=value)
         else:
             return node
+
+    def visit_UnaryOp(self, node):
+        self.generic_visit(node)
+        node.operand = _replace_constant(node.operand, self.constants)
+        if isinstance(node.operand, ast.Constant):
+            value = eval(ast.unparse(node), _globals, self.clocals)
+            return ast.Constant(value=value)
+        return node
 
     def visit_Compare(self, node):
         self.generic_visit(node)
@@ -95,7 +123,7 @@ class _InsertConstants(ast.NodeTransformer):
             for x in ([node.left] + node.comparators)
         ):
             try:
-                value = eval(ast.unparse(node))
+                value = eval(ast.unparse(node), _globals, self.clocals)
                 return ast.Constant(value=value)
             except:
                 return node
@@ -106,6 +134,18 @@ class _InsertConstants(ast.NodeTransformer):
         self.generic_visit(node)
         node.test = _replace_constant(node.test, self.constants)
         return node
+
+    # def visit_Attribute(node):
+    #     self.generic_visit(node)
+    #     value = node.value
+    #     if (
+    #         isinstance(value, ast.Attribute)
+    #         and isinstance(value.ctx, ast.Load)
+    #     ):
+    #         id = value.id
+    #         if id in self.clocals:
+    #            pass   -- dunno if there is a case for this....
+
 
     # def visit_Call(self, node):
     #     """
@@ -200,3 +240,10 @@ def reduce(func):
     _insert_constants(tree, func.__name__, clocals)
     tree = _remove_const_if(tree)
     return tree
+
+
+if __name__ == "__main__":
+
+    t1 = ast.parse("if not (1-bar): pass")
+    t2 = _insert_constants(t1, "foo", {"bar": 1})
+    print(ast.dump(t2, indent="    "))
