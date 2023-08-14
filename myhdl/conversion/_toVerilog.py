@@ -807,17 +807,24 @@ class _ConvertVisitor(ast.NodeVisitor, _ConversionMixin):
             self.write(e._toVerilog())
 
     def visit_Assert(self, node):
-        self.write("if (")
-        self.visit(node.test)
-        self.write(" !== 1) begin")
-        self.indent()
+        assert_false = (
+            isinstance(node.test, ast.Constant) and not node.test.value
+        )
+        if not assert_false:
+            self.write("if (")
+            self.visit(node.test)
+            self.write(" !== 1) begin")
+            self.indent()
         self.writeline()
-        self.write('$display("*** AssertionError ***");')
-        # self.writeline()
-        # self.write('$finish;')
-        self.dedent()
+        self.write('$display("*** AssertionError *** at %t ", $time);')
         self.writeline()
-        self.write("end")
+        self.write('$finish;')
+        if not assert_false:
+            self.dedent()
+            self.writeline()
+            self.write("end")
+        else:
+            self.writeline()
 
     def visit_Assign(self, node):
         # shortcut for expansion of ROM in case statement
@@ -1315,10 +1322,11 @@ class _ConvertVisitor(ast.NodeVisitor, _ConversionMixin):
                 a = node.args[argnr]
                 argnr += 1
                 obj = a.obj
-                if s.conv is int or isinstance(obj, int):
-                    fs = "%0d"
-                else:
-                    fs = "%h"
+                fs = "0x%0x"
+                # if s.conv is int or isinstance(obj, int):
+                #     fs = "%0d"
+                # else:
+                #     fs = "%h"
                 self.context = _context.PRINT
                 if isinstance(obj, str):
                     self.write('$write(')

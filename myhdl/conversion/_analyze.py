@@ -1126,7 +1126,8 @@ class _AnalyzeAlwaysCombVisitor(_AnalyzeBlockVisitor):
         self.refStack.push()
         for n in node.body:
             self.visit(n)
-        self.tree.kind = _kind.SIMPLE_ALWAYS_COMB
+        # SIMPLE does always work with arrays, so use plain:
+        self.tree.kind = _kind.ALWAYS_COMB
         for n in node.body:
             if isinstance(n, ast.Expr) and isinstance(n.value, ast.Str):
                 continue  # skip doc strings
