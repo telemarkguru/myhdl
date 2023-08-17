@@ -67,7 +67,7 @@ class Cosimulation(object):
         self._toSizes = toSizes = []
         self._toSigs = toSigs = []
         self._toSigDict = toSigDict = {}
-        self._hasChange = 0
+        self._hasChange = 1
         self._getMode = 1
 
         env = os.environ.copy()
